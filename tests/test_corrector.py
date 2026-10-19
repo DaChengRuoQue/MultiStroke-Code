@@ -40,6 +40,14 @@ class LightweightCorrectorTests(unittest.TestCase):
         destination = torch.tensor([0.49])
         torch.testing.assert_close(model(latent, time, destination), restored(latent, time, destination))
 
+    def test_existing_lightweight_checkpoint_config_remains_loadable(self):
+        model = LatentRoughnessCorrector()
+        checkpoint = corrector_checkpoint(model, step=10_000)
+        checkpoint["config"]["time_embedding_channels"] = 32
+        checkpoint["config"]["time_hidden_channels"] = 128
+        restored = LatentRoughnessCorrector.from_checkpoint(checkpoint)
+        self.assertEqual(restored.config.architecture, "flat")
+
     def test_non_lightweight_architecture_is_rejected(self):
         with self.assertRaises(ValueError):
             LatentRoughnessCorrector(LatentRoughnessCorrectorConfig(architecture="unsupported"))

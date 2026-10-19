@@ -16,6 +16,8 @@ class LatentRoughnessCorrectorConfig:
     hidden_channels: int = 32
     num_res_blocks: int = 4
     num_groups: int = 8
+    time_embedding_channels: int = 32
+    time_hidden_channels: int = 128
 
 
 class _ResidualBlock(nn.Module):
