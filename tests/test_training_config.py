@@ -43,6 +43,13 @@ class TrainingConfigTests(unittest.TestCase):
         self.assertEqual(config.coarsen_factor, 8)
         self.assertEqual(config.schedule_steps, 100)
 
+    def test_shorter_run_gets_five_evenly_spaced_default_checkpoints(self):
+        with tempfile.TemporaryDirectory() as dataset_root, self.environment(
+            dataset_root, TOTAL_STEPS="10000"
+        ):
+            config = TrainingConfig.from_environment()
+        self.assertEqual(config.save_steps, (2_000, 4_000, 6_000, 8_000, 10_000))
+
     def test_global_batch_must_be_divisible_by_world_size(self):
         with tempfile.TemporaryDirectory() as dataset_root, self.environment(
             dataset_root, GLOBAL_BATCH_SIZE="513"

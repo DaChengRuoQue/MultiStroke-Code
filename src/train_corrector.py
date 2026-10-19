@@ -8,8 +8,10 @@ from glob import glob
 import io
 import os
 from pathlib import Path
+import random
 
 import datasets
+import numpy as np
 from PIL import Image
 import torch
 import torch.distributed as dist
@@ -30,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-2)
     parser.add_argument("--num-workers", type=int, default=10)
+    parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--coarsen-factor", type=int, default=8)
     parser.add_argument("--save-every", type=int, default=10_000)
     parser.add_argument("--log-every", type=int, default=10)
@@ -124,6 +127,14 @@ def sample_adjacent_transition_indices(
     return source, source - 1
 
 
+def rank_training_seed(base_seed: int, rank: int) -> int:
+    return int(base_seed) + int(rank)
+
+
+def remaining_training_steps(total_steps: int, start_step: int) -> int:
+    return max(0, int(total_steps) - int(start_step))
+
+
 def set_optimizer_learning_rate(optimizer: torch.optim.Optimizer, learning_rate: float) -> None:
     for group in optimizer.param_groups:
         group["lr"] = learning_rate
@@ -144,6 +155,10 @@ def main() -> None:
     args = parse_args()
     validate_args(args)
     rank, world_size, device = _init_distributed()
+    process_seed = rank_training_seed(args.seed, rank)
+    random.seed(process_seed)
+    np.random.seed(process_seed)
+    torch.manual_seed(process_seed)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     model = LatentRoughnessCorrector().to(device)
@@ -163,6 +178,13 @@ def main() -> None:
         optimizer.load_state_dict(checkpoint["optimizer"])
         start_step = int(checkpoint["step"])
     set_optimizer_learning_rate(optimizer, args.learning_rate)
+    remaining_steps = remaining_training_steps(args.total_steps, start_step)
+    if remaining_steps == 0:
+        if rank == 0:
+            print(f"Checkpoint already reached {start_step} updates; training complete")
+        if world_size > 1:
+            dist.destroy_process_group()
+        return
     if world_size > 1:
         model = DDP(model, device_ids=[device.index], broadcast_buffers=False)
     vae = _load_frozen_vae(device)
@@ -170,7 +192,7 @@ def main() -> None:
     sampler = RandomSampler(
         dataset,
         replacement=True,
-        num_samples=(args.total_steps - start_step) * args.batch_size,
+        num_samples=remaining_steps * args.batch_size,
     )
     loader = DataLoader(
         dataset,

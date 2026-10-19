@@ -20,6 +20,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 export PYTHONPATH="${PROJECT_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 export TRAINING_MODE=multistroke
+export TRAIN_SEED="${TRAIN_SEED:-0}"
 export SAVE_DIR="$OUTPUT_DIR"
 export GLOBAL_BATCH_SIZE BATCH_SIZE_PER_RANK
 

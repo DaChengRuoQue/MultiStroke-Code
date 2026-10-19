@@ -19,6 +19,7 @@ class LaunchScriptTests(unittest.TestCase):
                 "{\n"
                 "  printf 'TRAINING_MODE=%s\\n' \"${TRAINING_MODE:-}\"\n"
                 "  printf 'BATCH_SIZE_PER_RANK=%s\\n' \"${BATCH_SIZE_PER_RANK:-}\"\n"
+                "  printf 'TRAIN_SEED=%s\\n' \"${TRAIN_SEED:-}\"\n"
                 "  printf '%s\\n' \"$@\"\n"
                 "} > \"$CAPTURE_PATH\"\n",
                 encoding="utf-8",
@@ -55,6 +56,7 @@ class LaunchScriptTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(f"TRAINING_MODE={mode}\n", captured)
                 self.assertIn("BATCH_SIZE_PER_RANK=64\n", captured)
+                self.assertIn("TRAIN_SEED=0\n", captured)
                 self.assertIn("src.train\n", captured)
 
     def test_nondivisible_global_batch_is_rejected_before_launch(self):

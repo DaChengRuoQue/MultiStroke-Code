@@ -76,7 +76,10 @@ class TrainingConfig:
             raise ValueError("TOTAL_STEPS, GLOBAL_BATCH_SIZE, and WORLD_SIZE must be positive")
         if global_batch_size % world_size:
             raise ValueError("GLOBAL_BATCH_SIZE must be divisible by WORLD_SIZE")
-        default_save_steps = ",".join(str(step) for step in range(20_000, total_steps + 1, 20_000))
+        default_milestones = tuple(
+            dict.fromkeys(max(1, total_steps * index // 5) for index in range(1, 6))
+        )
+        default_save_steps = ",".join(str(step) for step in default_milestones)
         save_steps = tuple(
             int(value) for value in os.environ.get("SAVE_STEPS", default_save_steps).split(",") if value.strip()
         )

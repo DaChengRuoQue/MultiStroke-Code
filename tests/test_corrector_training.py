@@ -6,6 +6,8 @@ import unittest
 import torch
 
 from src.train_corrector import (
+    rank_training_seed,
+    remaining_training_steps,
     sample_adjacent_transition_indices,
     set_optimizer_learning_rate,
     validate_args,
@@ -13,6 +15,14 @@ from src.train_corrector import (
 
 
 class CorrectorTrainingTests(unittest.TestCase):
+    def test_rank_training_seed_offsets_each_process(self):
+        self.assertEqual(rank_training_seed(41, 0), 41)
+        self.assertEqual(rank_training_seed(41, 3), 44)
+
+    def test_completed_resume_has_no_remaining_steps(self):
+        self.assertEqual(remaining_training_steps(10_000, 10_000), 0)
+        self.assertEqual(remaining_training_steps(10_000, 12_000), 0)
+
     def args(self, dataset_root: str, coarsen_factor: int = 8):
         return argparse.Namespace(
             dataset_root=dataset_root,
