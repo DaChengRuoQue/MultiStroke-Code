@@ -20,11 +20,31 @@ class ReleaseScopeTests(unittest.TestCase):
     def test_scaffold_files_exist(self):
         required = {
             ".gitignore",
+            "README.md",
             "requirements.txt",
+            "scripts/sample_baseline.sh",
+            "scripts/sample_multistroke_corrector.sh",
+            "scripts/train_baseline.sh",
+            "scripts/train_corrector.sh",
+            "scripts/train_multistroke.sh",
             "src/__init__.py",
             "src/blocks/__init__.py",
             "src/helpers/__init__.py",
             "src/models/__init__.py",
+            "src/models/diff_model.py",
+            "src/models/latent_roughness_corrector.py",
+            "src/model_trainer.py",
+            "src/multistroke.py",
+            "src/sample.py",
+            "src/train.py",
+            "src/train_corrector.py",
+            "tests/test_corrector.py",
+            "tests/test_corrector_training.py",
+            "tests/test_launch_scripts.py",
+            "tests/test_multistroke.py",
+            "tests/test_release_scope.py",
+            "tests/test_sampling.py",
+            "tests/test_training_config.py",
         }
         missing = sorted(path for path in required if not (ROOT / path).is_file())
         self.assertFalse(missing, f"Missing release files: {missing}")
@@ -65,6 +85,27 @@ class ReleaseScopeTests(unittest.TestCase):
                     violations.append(f"forbidden text {token!r}: {relative}")
 
         self.assertFalse(violations, "\n".join(violations))
+
+    def test_readme_has_no_citation_block(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
+        self.assertNotIn("## citation", readme)
+        self.assertNotIn("bibtex", readme)
+
+    def test_all_release_files_are_tracked(self):
+        result = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        pending = {
+            path
+            for path in result.stdout.splitlines()
+            if path not in {"README.md", "tests/test_launch_scripts.py", "tests/test_release_scope.py"}
+            and not path.startswith("scripts/")
+        }
+        self.assertFalse(pending, f"Unexpected untracked release files: {sorted(pending)}")
 
 
 if __name__ == "__main__":
