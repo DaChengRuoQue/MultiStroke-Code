@@ -20,4 +20,5 @@ venv/
 *.jpeg
 *.gif
 wandb/
+commands_*.txt
 

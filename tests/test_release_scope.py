@@ -21,9 +21,19 @@ class ReleaseScopeTests(unittest.TestCase):
         required = {
             ".gitignore",
             "README.md",
+            "configs/cifar10_ddpm.yaml",
+            "multistroke_sd/ddpm_diffusion.py",
+            "multistroke_sd/ddpm_sampler.py",
+            "multistroke_sd/ddpm_unet.py",
+            "multistroke_sd/multistroke.py",
             "requirements.txt",
+            "scripts/sample_cifar.sh",
+            "scripts/sample_cifar_ddpm.py",
             "scripts/sample_baseline.sh",
             "scripts/sample_multistroke_corrector.sh",
+            "scripts/train_cifar_baseline.sh",
+            "scripts/train_cifar_ddpm.py",
+            "scripts/train_cifar_multistroke.sh",
             "scripts/train_baseline.sh",
             "scripts/train_corrector.sh",
             "scripts/train_multistroke.sh",
@@ -40,6 +50,7 @@ class ReleaseScopeTests(unittest.TestCase):
             "src/train_corrector.py",
             "tests/test_corrector.py",
             "tests/test_corrector_training.py",
+            "tests/test_cifar_multistroke.py",
             "tests/test_launch_scripts.py",
             "tests/test_multistroke.py",
             "tests/test_release_scope.py",
@@ -53,7 +64,7 @@ class ReleaseScopeTests(unittest.TestCase):
         forbidden_suffixes = {".pkl", ".pt", ".pth", ".ckpt", ".npz"}
         forbidden_directories = {"runs", "runner_logs", "cache", "VAE"}
         forbidden_text = {
-            "/home/yunwei",
+            "/home/",
             "/shared_temp",
             "PEEK",
             "StrokeGen",

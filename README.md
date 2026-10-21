@@ -1,6 +1,6 @@
 # MultiStroke
 
-This repository contains the ImageNet-256 flow-matching implementation for a matched baseline, pixel-roughening MultiStroke, and a lightweight latent corrector. It provides focused training and Euler-sampling entry points without model checkpoints, generated outputs, or dataset files.
+This repository contains the ImageNet-256 flow-matching and CIFAR-10 DDPM implementations for matched baselines and MultiStroke. It provides focused training and sampling entry points without model checkpoints, generated outputs, or dataset files.
 
 ## Method overview
 
@@ -9,6 +9,8 @@ The baseline trains a class-conditioned latent flow model on ImageNet images enc
 The default MultiStroke configuration uses the same model, optimizer, training duration, and global batch size. Before VAE encoding, it blends each image with an 8-by-8 block-averaged representation according to the continuous flow time. The roughness schedule is aligned with 100 Euler sampling steps.
 
 The lightweight corrector is trained separately with the VAE frozen. Its input is the latent representation of an image at one roughness level. Its target is the latent residual to the immediately finer roughness level of the same image. During corrected sampling, it refines the predicted image endpoint between adjacent Euler steps.
+
+For CIFAR-10, the matched experiment trains a class-conditional pixel-space DDPM for 100 diffusion steps. MultiStroke applies the two-pixel block operator to both the noisy model input and the noise target. Sampling follows the same original diffusion coordinates, clips the predicted clean image in ordinary image space, and uses the same fixed-small posterior variance for the baseline and MultiStroke models.
 
 ## Installation
 
@@ -22,6 +24,54 @@ python -m pip install -r requirements.txt
 ```
 
 The VAE is loaded from Hugging Face on first use and cached under `VAE/`.
+
+## CIFAR-10 DDPM experiments
+
+The checked-in configuration at `configs/cifar10_ddpm.yaml` reproduces the matched setup used for the baseline and MultiStroke comparison. Both runs use the same U-Net, optimizer, training duration, per-process batch size, and diffusion schedule. The only training difference is the MultiStroke forward process and target.
+
+The default launchers use two processes and a per-process batch size of 40. Set `NUM_PROCESSES` to match the available GPUs. Changing it changes the global batch size unless `train_batch_size` or gradient accumulation is adjusted accordingly.
+
+Download CIFAR-10 and train the baseline:
+
+```bash
+DATA_ROOT=/path/to/cifar10 \
+OUTPUT_DIR=/path/to/runs/cifar10_ddpm_baseline \
+NUM_PROCESSES=2 \
+bash scripts/train_cifar_baseline.sh --download
+```
+
+Train MultiStroke with the same configuration:
+
+```bash
+DATA_ROOT=/path/to/cifar10 \
+OUTPUT_DIR=/path/to/runs/cifar10_multistroke \
+NUM_PROCESSES=2 \
+bash scripts/train_cifar_multistroke.sh
+```
+
+To resume either run, append `--resume /path/to/run/checkpoints/latest`. Checkpoints are written under `OUTPUT_DIR/checkpoints/latest`, with immutable milestone copies in adjacent `progress_*` directories.
+
+Generate matched baseline samples:
+
+```bash
+CHECKPOINT_DIR=/path/to/runs/cifar10_ddpm_baseline/checkpoints/latest \
+OUTPUT_DIR=/path/to/samples/cifar10_ddpm_baseline \
+NUM_PROCESSES=8 \
+bash scripts/sample_cifar.sh
+```
+
+Generate MultiStroke samples by pointing the same sampler at the MultiStroke checkpoint:
+
+```bash
+CHECKPOINT_DIR=/path/to/runs/cifar10_multistroke/checkpoints/latest \
+OUTPUT_DIR=/path/to/samples/cifar10_multistroke \
+NUM_PROCESSES=8 \
+bash scripts/sample_cifar.sh
+```
+
+The sampler reads the method and diffusion settings from the checkpoint. It defaults to 100 ancestral steps, fixed-small variance, clean-space clipping, a per-process batch size of 128, and indexed PNG output under `OUTPUT_DIR/images`. Append `--resume` to skip existing image indices after an interrupted run. Use the same standard CIFAR-10 reference statistics and evaluator for both output directories when computing FID.
+
+Older checkpoints that do not store the method remain supported. Set `METHOD=ddpm` or `METHOD=multistroke` when invoking `scripts/sample_cifar.sh` for those checkpoints.
 
 ## ImageNet data
 
@@ -131,9 +181,11 @@ The shell launchers are thin wrappers around:
 python -m src.train --help
 python -m src.train_corrector --help
 python -m src.sample --help
+python scripts/train_cifar_ddpm.py --help
+python scripts/sample_cifar_ddpm.py --help
 ```
 
-Use the launchers for distributed runs because they validate required paths and batch divisibility before invoking `torchrun`.
+Use the launchers for distributed runs. The ImageNet launchers validate required paths and batch divisibility; the CIFAR-10 launchers provide the matched experiment defaults.
 
 ## Troubleshooting
 
@@ -141,5 +193,7 @@ Use the launchers for distributed runs because they validate required paths and 
 - `ImageNet dataset root not found`: verify `IMAGENET_DATASET_ROOT` and dataset permissions.
 - `Flow checkpoint not found`: verify `CHECKPOINT_DIR`, `LOAD_FILE`, and `LOAD_DEF_FILE`.
 - `Latent corrector checkpoint not found`: verify `CORRECTOR_CHECKPOINT`.
+- `The matched CIFAR experiment uses 100 diffusion steps`: use the checked-in CIFAR configuration for the reproduced experiment.
+- `Missing trainer_state.pt`: point `CHECKPOINT_DIR` to a checkpoint directory such as `checkpoints/latest`, not the run root.
 - `Sampling requires CUDA`: run sampling in a CUDA-enabled environment.
 - Out-of-memory errors: reduce `SAMPLE_BATCH_SIZE` for sampling. For training, preserve the global batch by increasing process count when reducing the per-process batch.
